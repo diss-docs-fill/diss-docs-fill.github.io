@@ -110,9 +110,16 @@
             }
         }
 
-        // Mock processing function: reverses the text
-        function mockProcess(content) {
-            return content.split('').reverse().join('');
+        // Processing function: eval fragments in ___...___ and replace if successful
+        function processContent(content) {
+            return content.replace(/___(.*?)___/g, (match, expr) => {
+                try {
+                    const result = eval(expr);
+                    return String(result); // Ensure it's a string
+                } catch (e) {
+                    return match; // Leave unchanged on error
+                }
+            });
         }
 
         processBtn.addEventListener('click', async () => {
@@ -134,12 +141,10 @@
                 
                 if (originalZip.files[xmlPath]) {
                     const xmlContent = await originalZip.files[xmlPath].async('text');
-                    const processedContent = mockProcess(xmlContent);
+                    const processedContent = processContent(xmlContent);
                     
-                    // Replace in the zip
-                    originalZip.files[xmlPath].async('uint8array').then(() => {
-                        originalZip.files[xmlPath] = new JSZip().file(xmlPath, processedContent);
-                    });
+                    // Replace the file content in the zip
+                    originalZip.file(xmlPath, processedContent);
                 }
                 
                 // Add to new zip with modified name
