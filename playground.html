@@ -11,9 +11,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
+            padding: 20px;
         }
         .drop-zone {
             border: 2px dashed #ccc;
@@ -28,6 +29,7 @@
             cursor: pointer;
             background-color: #fafafa;
             transition: border-color 0.3s;
+            margin-bottom: 20px;
         }
         .drop-zone.dragover {
             border-color: #007bff;
@@ -56,6 +58,25 @@
             margin-top: 20px;
             color: #333;
         }
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin-top: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        input {
+            width: 100%;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
@@ -68,8 +89,57 @@
     <button id="processBtn" disabled>Process and Download</button>
     <div id="status"></div>
 
+    <h2>Variables</h2>
+    <table id="variablesTable">
+        <thead>
+            <tr>
+                <th>Comment</th>
+                <th>Variable Name</th>
+                <th>Variable Value (Editable)</th>
+                <th>Examples</th>
+            </tr>
+        </thead>
+        <tbody id="variablesBody">
+            <!-- Rows will be populated by JS -->
+        </tbody>
+    </table>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
+        // Define variables as an array of objects (easy to tweak)
+        const variables = [
+            { comment: "A simple string variable", name: "myString", value: "Hello World", examples: "Use as ___myString___" },
+            { comment: "A number variable", name: "myNumber", value: 42, examples: "Use as ___myNumber * 2___" },
+            { comment: "An array variable", name: "myArray", value: [1, 2, 3], examples: "Use as ___myArray.length___" },
+            // Add more variables here as needed
+        ];
+
+        // Set variables globally on window for eval access
+        variables.forEach(v => {
+            window[v.name] = v.value;
+        });
+
+        // Populate the table
+        const variablesBody = document.getElementById('variablesBody');
+        variables.forEach(v => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${v.comment}</td>
+                <td>${v.name}</td>
+                <td><input type="text" value="${v.value}" data-var="${v.name}"></td>
+                <td>${v.examples}</td>
+            `;
+            variablesBody.appendChild(row);
+        });
+
+        // Update global variables on input change
+        variablesBody.addEventListener('input', (e) => {
+            if (e.target.tagName === 'INPUT') {
+                const varName = e.target.getAttribute('data-var');
+                window[varName] = e.target.value;
+            }
+        });
+
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const processBtn = document.getElementById('processBtn');
