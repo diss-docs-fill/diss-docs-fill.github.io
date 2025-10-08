@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Processor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            width: 400px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #666;
+            cursor: pointer;
+            background-color: #fafafa;
+            transition: border-color 0.3s;
+        }
+        .drop-zone.dragover {
+            border-color: #007bff;
+            background-color: #e7f3ff;
+        }
+        .drop-zone:hover {
+            border-color: #007bff;
+        }
+        .drop-zone input {
+            display: none;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Processor</h1>
+    <p>Drag and drop .odt or .docx files here, or click to select.</p>
+    <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" multiple accept=".odt,.docx">
+        <p>Drop files here or click to browse</p>
+    </div>
+    <button id="processBtn" disabled>Process and Download</button>
+    <div id="status"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const statusDiv = document.getElementById('status');
+        let selectedFiles = [];
+
+        // Drag and drop events
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            selectedFiles = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
+            updateUI();
+        });
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            selectedFiles = Array.from(fileInput.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
+            updateUI();
+        });
+
+        function updateUI() {
+            if (selectedFiles.length > 0) {
+                processBtn.disabled = false;
+                statusDiv.textContent = `${selectedFiles.length} file(s) selected.`;
+            } else {
+                processBtn.disabled = true;
+                statusDiv.textContent = 'No valid files selected.';
+            }
+        }
+
+        // Mock processing function: reverses the text
+        function mockProcess(content) {
+            return content.split('').reverse().join('');
+        }
+
+        processBtn.addEventListener('click', async () => {
+            statusDiv.textContent = 'Processing...';
+            processBtn.disabled = true;
+
+            const zip = new JSZip();
+            for (const file of selectedFiles) {
+                const arrayBuffer = await file.arrayBuffer();
+                const originalZip = await JSZip.loadAsync(arrayBuffer);
+                
+                // Determine main XML path
+                let xmlPath;
+                if (file.name.endsWith('.odt')) {
+                    xmlPath = 'content.xml';
+                } else if (file.name.endsWith('.docx')) {
+                    xmlPath = 'word/document.xml';
+                }
+                
+                if (originalZip.files[xmlPath]) {
+                    const xmlContent = await originalZip.files[xmlPath].async('text');
+                    const processedContent = mockProcess(xmlContent);
+                    
+                    // Replace in the zip
+                    originalZip.files[xmlPath].async('uint8array').then(() => {
+                        originalZip.files[xmlPath] = new JSZip().file(xmlPath, processedContent);
+                    });
+                }
+                
+                // Add to new zip with modified name
+                const modifiedBlob = await originalZip.generateAsync({ type: 'blob' });
+                zip.file(`processed_${file.name}`, modifiedBlob);
+            }
+
+            // Download the zip
+            const downloadBlob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(downloadBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'processed_files.zip';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            statusDiv.textContent = 'Download ready!';
+            processBtn.disabled = false;
+        });
+    </script>
+</body>
+</html>
