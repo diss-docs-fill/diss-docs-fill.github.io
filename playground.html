@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Processor</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>File Processor с переменными</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -81,58 +81,75 @@
 </head>
 <body>
     <h1>File Processor</h1>
-    <p>Drag and drop .odt or .docx files here, or click to select.</p>
+    <p>Перетащите сюда .odt или .docx файлы, либо нажмите для выбора.</p>
     <div class="drop-zone" id="dropZone">
-        <input type="file" id="fileInput" multiple accept=".odt,.docx">
-        <p>Drop files here or click to browse</p>
+        <input type="file" id="fileInput" multiple accept=".odt,.docx" />
+        <p>Перетащите файлы сюда или кликните для выбора</p>
     </div>
-    <button id="processBtn" disabled>Process and Download</button>
+    <button id="processBtn" disabled>Обработать и скачать</button>
     <div id="status"></div>
 
-    <h2>Variables</h2>
+    <h2>Переменные</h2>
     <table id="variablesTable">
         <thead>
             <tr>
-                <th>Comment</th>
-                <th>Variable Name</th>
-                <th>Variable Value (Editable)</th>
-                <th>Examples</th>
+                <th>Комментарий</th>
+                <th>Имя переменной</th>
+                <th>Значение переменной (редактируемое)</th>
+                <th>Примеры</th>
             </tr>
         </thead>
         <tbody id="variablesBody">
-            <!-- Rows will be populated by JS -->
+            <!-- Заполняется JS -->
         </tbody>
     </table>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
-        // Define variables as an array of objects (easy to tweak)
+        // Ваши переменные с кириллицей
         const variables = [
-            { comment: "A simple string variable", name: "myString", value: "Hello World", examples: "Use as ___myString___" },
-            { comment: "A number variable", name: "myNumber", value: 42, examples: "Use as ___myNumber * 2___" },
-            { comment: "An array variable", name: "myArray", value: [1, 2, 3], examples: "Use as ___myArray.length___" },
-            // Add more variables here as needed
+            {
+                comment: "Фамилия, имя, отчество соискателя в родительном падеже",
+                name: "ФИО_в_родительном_падеже",
+                value: "Ивановой Марии Петровны",
+                examples: "Петрова Алексея Сидоровича"
+            },
+            {
+                comment: "Тема диссертации",
+                name: "ТЕМА_ДИССЕРТАЦИИ",
+                value: "О некоторых изометрических вложениях трёхмерного шара в отдельных представителей фауны средней полосы",
+                examples: "О некоторых изометрических вложениях трёхмерного шара в отдельных представителей фауны средней полосы"
+            },
+            {
+                comment: "Шифр диссертационного совета",
+                name: "ШИФР_СОВЕТА",
+                value: "ПДС.1337.265",
+                examples: "Д.220.66.66"
+            },
+            // Можно добавить другие переменные здесь
         ];
 
-        // Set variables globally on window for eval access
+        // Устанавливаем переменные глобально для eval
         variables.forEach(v => {
             window[v.name] = v.value;
         });
 
-        // Populate the table
+        // Заполняем таблицу
         const variablesBody = document.getElementById('variablesBody');
         variables.forEach(v => {
             const row = document.createElement('tr');
+            // Экранируем значение для value input, на всякий случай
+            const escapedValue = String(v.value).replace(/"/g, '&quot;');
             row.innerHTML = `
                 <td>${v.comment}</td>
                 <td>${v.name}</td>
-                <td><input type="text" value="${v.value}" data-var="${v.name}"></td>
+                <td><input type="text" value="${escapedValue}" data-var="${v.name}"></td>
                 <td>${v.examples}</td>
             `;
             variablesBody.appendChild(row);
         });
 
-        // Update global variables on input change
+        // Обновляем глобальные переменные при изменении input
         variablesBody.addEventListener('input', (e) => {
             if (e.target.tagName === 'INPUT') {
                 const varName = e.target.getAttribute('data-var');
@@ -173,56 +190,52 @@
         function updateUI() {
             if (selectedFiles.length > 0) {
                 processBtn.disabled = false;
-                statusDiv.textContent = `${selectedFiles.length} file(s) selected.`;
+                statusDiv.textContent = `${selectedFiles.length} файл(ов) выбран(о).`;
             } else {
                 processBtn.disabled = true;
-                statusDiv.textContent = 'No valid files selected.';
+                statusDiv.textContent = 'Нет выбранных файлов.';
             }
         }
 
-        // Processing function: eval fragments in ___...___ and replace if successful
+        // Обработка содержимого: заменяем ___...___ на eval
         function processContent(content) {
             return content.replace(/___(.*?)___/g, (match, expr) => {
                 try {
                     const result = eval(expr);
-                    return String(result); // Ensure it's a string
+                    return String(result);
                 } catch (e) {
-                    return match; // Leave unchanged on error
+                    return match; // Если ошибка, оставляем без изменений
                 }
             });
         }
 
         processBtn.addEventListener('click', async () => {
-            statusDiv.textContent = 'Processing...';
+            statusDiv.textContent = 'Обработка...';
             processBtn.disabled = true;
 
             const zip = new JSZip();
             for (const file of selectedFiles) {
                 const arrayBuffer = await file.arrayBuffer();
                 const originalZip = await JSZip.loadAsync(arrayBuffer);
-                
-                // Determine main XML path
+
                 let xmlPath;
                 if (file.name.endsWith('.odt')) {
                     xmlPath = 'content.xml';
                 } else if (file.name.endsWith('.docx')) {
                     xmlPath = 'word/document.xml';
                 }
-                
+
                 if (originalZip.files[xmlPath]) {
                     const xmlContent = await originalZip.files[xmlPath].async('text');
                     const processedContent = processContent(xmlContent);
-                    
-                    // Replace the file content in the zip
+
                     originalZip.file(xmlPath, processedContent);
                 }
-                
-                // Add to new zip with modified name
+
                 const modifiedBlob = await originalZip.generateAsync({ type: 'blob' });
                 zip.file(`processed_${file.name}`, modifiedBlob);
             }
 
-            // Download the zip
             const downloadBlob = await zip.generateAsync({ type: 'blob' });
             const url = URL.createObjectURL(downloadBlob);
             const a = document.createElement('a');
@@ -231,7 +244,7 @@
             a.click();
             URL.revokeObjectURL(url);
 
-            statusDiv.textContent = 'Download ready!';
+            statusDiv.textContent = 'Готово! Файлы скачаны.';
             processBtn.disabled = false;
         });
     </script>
