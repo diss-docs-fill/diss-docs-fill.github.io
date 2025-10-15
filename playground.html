@@ -255,6 +255,13 @@
                 zip.file(`processed_${file.name}`, modifiedBlob);
             }
 
+            // Добавляем JSON-файл с значениями переменных
+            const variablesJson = {};
+            variables.forEach(v => {
+                variablesJson[v.name] = v.value;
+            });
+            zip.file('variables.json', JSON.stringify(variablesJson, null, 2));
+
             const downloadBlob = await zip.generateAsync({ type: 'blob' });
             const url = URL.createObjectURL(downloadBlob);
             const a = document.createElement('a');
