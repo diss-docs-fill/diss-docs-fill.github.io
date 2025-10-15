@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>File Processor с переменными</title>
+    <title>Автозаполнение документов для диссертации</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -80,16 +80,23 @@
     </style>
 </head>
 <body>
-    <h1>File Processor</h1>
+    <h1>
+		Автозаполнение некоторых полей
+		<br/>
+		в документах для защиты диссертации
+	</h1>
     <p>Перетащите сюда .odt, .docx или .json файлы, либо нажмите для выбора.</p>
     <div class="drop-zone" id="dropZone">
         <input type="file" id="fileInput" multiple accept=".odt,.docx,.json" />
-        <p>Перетащите файлы сюда или кликните для выбора</p>
+        <p>Перетащите файлы сюда или нажмите для выбора</p>
     </div>
     <button id="processBtn" disabled>Обработать и скачать</button>
     <div id="status"></div>
 
-    <h2>Переменные</h2>
+    <h2>Какие данные вносим?</h2>
+    <p>
+		Чудес не будет, но станет немного полегче :)
+    </p>
     <table id="variablesTable">
         <thead>
             <tr>
@@ -103,6 +110,14 @@
             <!-- Заполняется JS -->
         </tbody>
     </table>
+
+	<br/>
+	<p>
+		Значения из этой таблицы будут сохранены в файл variables.json .
+		<br/>
+		Этот файл можно впоследствии загрузить вместе с шаблонами документов, чтобы не вносить данные заново.
+	</p>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
