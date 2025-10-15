@@ -81,9 +81,9 @@
 </head>
 <body>
     <h1>File Processor</h1>
-    <p>Перетащите сюда .odt или .docx файлы, либо нажмите для выбора.</p>
+    <p>Перетащите сюда .odt, .docx или .json файлы, либо нажмите для выбора.</p>
     <div class="drop-zone" id="dropZone">
-        <input type="file" id="fileInput" multiple accept=".odt,.docx" />
+        <input type="file" id="fileInput" multiple accept=".odt,.docx,.json" />
         <p>Перетащите файлы сюда или кликните для выбора</p>
     </div>
     <button id="processBtn" disabled>Обработать и скачать</button>
@@ -171,6 +171,35 @@
         const processBtn = document.getElementById('processBtn');
         const statusDiv = document.getElementById('status');
         let selectedFiles = [];
+        let jsonFiles = [];
+        let docFiles = [];
+
+        // Функция для обработки JSON файлов
+        async function processJsonFiles(files) {
+            for (const file of files) {
+                if (confirm(`Подтвердите загрузку переменных из файла ${file.name}?`)) {
+                    try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        // Обновляем переменные
+                        variables.forEach(v => {
+                            if (data.hasOwnProperty(v.name)) {
+                                v.value = data[v.name];
+                                window[v.name] = v.value;
+                                // Обновляем input в таблице
+                                const input = variablesBody.querySelector(`input[data-var="${v.name}"]`);
+                                if (input) {
+                                    input.value = v.value;
+                                }
+                            }
+                        });
+                        statusDiv.textContent += ` Переменные из ${file.name} загружены.\n`;
+                    } catch (e) {
+                        alert(`Ошибка при обработке ${file.name}: ${e.message}`);
+                    }
+                }
+            }
+        }
 
         // Drag and drop events
         dropZone.addEventListener('dragover', (e) => {
@@ -182,27 +211,37 @@
             dropZone.classList.remove('dragover');
         });
 
-        dropZone.addEventListener('drop', (e) => {
+        dropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            selectedFiles = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
+            selectedFiles = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx') || file.name.endsWith('.json'));
+            jsonFiles = selectedFiles.filter(file => file.name.endsWith('.json'));
+            docFiles = selectedFiles.filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
+            if (jsonFiles.length > 0) {
+                await processJsonFiles(jsonFiles);
+            }
             updateUI();
         });
 
         dropZone.addEventListener('click', () => fileInput.click());
 
-        fileInput.addEventListener('change', () => {
-            selectedFiles = Array.from(fileInput.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
+        fileInput.addEventListener('change', async () => {
+            selectedFiles = Array.from(fileInput.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx') || file.name.endsWith('.json'));
+            jsonFiles = selectedFiles.filter(file => file.name.endsWith('.json'));
+            docFiles = selectedFiles.filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
+            if (jsonFiles.length > 0) {
+                await processJsonFiles(jsonFiles);
+            }
             updateUI();
         });
 
         function updateUI() {
-            if (selectedFiles.length > 0) {
+            if (docFiles.length > 0) {
                 processBtn.disabled = false;
-                statusDiv.textContent = `${selectedFiles.length} файл(ов) выбран(о).`;
+                statusDiv.textContent = `Готово к обработке: ${docFiles.length} документ(ов).`;
             } else {
                 processBtn.disabled = true;
-                statusDiv.textContent = 'Нет выбранных файлов.';
+                statusDiv.textContent = 'Нет выбранных документов для обработки.';
             }
         }
 
@@ -233,7 +272,7 @@
             processBtn.disabled = true;
 
             const zip = new JSZip();
-            for (const file of selectedFiles) {
+            for (const file of docFiles) {
                 const arrayBuffer = await file.arrayBuffer();
                 const originalZip = await JSZip.loadAsync(arrayBuffer);
 
