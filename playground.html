@@ -201,6 +201,15 @@
             }
         }
 
+        // Функция для проверки неподдерживаемых файлов
+        function checkUnsupportedFiles(files) {
+            const unsupported = files.filter(file => file.name.endsWith('.doc') || file.name.endsWith('.rtf'));
+            if (unsupported.length > 0) {
+                const names = unsupported.map(f => f.name).join(', ');
+                alert(`Неподдерживаемые форматы файлов: ${names}. Они будут игнорированы. Поддерживаются только .odt, .docx и .json.`);
+            }
+        }
+
         // Drag and drop events
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -214,7 +223,9 @@
         dropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            selectedFiles = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx') || file.name.endsWith('.json'));
+            const allFiles = Array.from(e.dataTransfer.files);
+            checkUnsupportedFiles(allFiles);
+            selectedFiles = allFiles.filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx') || file.name.endsWith('.json'));
             jsonFiles = selectedFiles.filter(file => file.name.endsWith('.json'));
             docFiles = selectedFiles.filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
             if (jsonFiles.length > 0) {
@@ -226,7 +237,9 @@
         dropZone.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', async () => {
-            selectedFiles = Array.from(fileInput.files).filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx') || file.name.endsWith('.json'));
+            const allFiles = Array.from(fileInput.files);
+            checkUnsupportedFiles(allFiles);
+            selectedFiles = allFiles.filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx') || file.name.endsWith('.json'));
             jsonFiles = selectedFiles.filter(file => file.name.endsWith('.json'));
             docFiles = selectedFiles.filter(file => file.name.endsWith('.odt') || file.name.endsWith('.docx'));
             if (jsonFiles.length > 0) {
