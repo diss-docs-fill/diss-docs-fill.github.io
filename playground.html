@@ -245,9 +245,17 @@
             }
         }
 
-        // Обработка содержимого: заменяем ___...___ на eval (если не undefined), затем заменяем оставшиеся имена переменных
+        // Обработка содержимого: исключаем длинные подчёркивания (4+ подряд) из обработки
         function processContent(content) {
-            // Сначала обрабатываем плейсхолдеры ___...___
+            const placeholders = [];
+            // Заменяем длинные подчёркивания (4+) на маркеры, чтобы исключить из обработки
+            content = content.replace(/_{4,}/g, (match) => {
+                const marker = `__PLACEHOLDER_${placeholders.length}__`;
+                placeholders.push(match);
+                return marker;
+            });
+
+            // Теперь обрабатываем плейсхолдеры ___...___
             content = content.replace(/___(.*?)___/g, (match, expr) => {
                 try {
                     const result = eval(expr);
@@ -260,10 +268,17 @@
                     return match; // если ошибка, оставить без изменений
                 }
             });
+
             // Теперь заменяем любые оставшиеся имена переменных на их значения по всему документу
             variables.forEach(v => {
                 content = content.replaceAll(v.name, v.value);
             });
+
+            // Возвращаем длинные подчёркивания обратно
+            placeholders.forEach((orig, i) => {
+                content = content.replace(`__PLACEHOLDER_${i}__`, orig);
+            });
+
             return content;
         }
 
