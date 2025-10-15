@@ -154,6 +154,9 @@
             if (e.target.tagName === 'INPUT') {
                 const varName = e.target.getAttribute('data-var');
                 window[varName] = e.target.value;
+                // Также обновляем в массиве variables для replace
+                const varObj = variables.find(v => v.name === varName);
+                if (varObj) varObj.value = e.target.value;
             }
         });
 
@@ -197,16 +200,26 @@
             }
         }
 
-        // Обработка содержимого: заменяем ___...___ на eval
+        // Обработка содержимого: заменяем ___...___ на eval (если не undefined), затем заменяем оставшиеся имена переменных
         function processContent(content) {
-            return content.replace(/___(.*?)___/g, (match, expr) => {
+            // Сначала обрабатываем плейсхолдеры ___...___
+            content = content.replace(/___(.*?)___/g, (match, expr) => {
                 try {
                     const result = eval(expr);
-                    return String(result);
+                    if (result !== undefined) {
+                        return String(result);
+                    } else {
+                        return match; // оставить без изменений
+                    }
                 } catch (e) {
-                    return match; // Если ошибка, оставляем без изменений
+                    return match; // если ошибка, оставить без изменений
                 }
             });
+            // Теперь заменяем любые оставшиеся имена переменных на их значения по всему документу
+            variables.forEach(v => {
+                content = content.replaceAll(v.name, v.value);
+            });
+            return content;
         }
 
         processBtn.addEventListener('click', async () => {
