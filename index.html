@@ -358,7 +358,12 @@
                 }
 
                 const modifiedBlob = await originalZip.generateAsync({ type: 'blob' });
-                zip.file(`processed_${file.name}`, modifiedBlob);
+
+                // Изменяем имя файла: добавляем "__autofilled" перед расширением
+                const ext = file.name.split('.').pop(); // Получаем расширение
+                const base = file.name.slice(0, -ext.length - 1); // Получаем имя без расширения и точки
+                const newName = `${base}__autofilled.${ext}`;
+                zip.file(newName, modifiedBlob);
             }
 
             // Добавляем JSON-файл с значениями переменных
