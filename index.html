@@ -174,9 +174,25 @@
             // Можно добавить другие переменные здесь
         ];
 
-        // Устанавливаем переменные глобально для eval
+        // Функция для установки переменных в window
+        function setVariable(varName, varValue) {
+            if (varValue.trim() === '') {
+                // Если пустое, устанавливаем getter, который выбрасывает ошибку при чтении
+                Object.defineProperty(window, varName, {
+                    get: () => {
+                        throw new Error(`Переменная "${varName}" пуста и не может быть использована в выражениях.`);
+                    },
+                    configurable: true // Чтобы можно было переопределить позже
+                });
+            } else {
+                // Иначе присваиваем значение
+                window[varName] = varValue;
+            }
+        }
+
+        // Инициализация переменных
         variables.forEach(v => {
-            window[v.name] = v.value;
+            setVariable(v.name, v.value);
         });
 
         // Заполняем таблицу
@@ -194,14 +210,16 @@
             variablesBody.appendChild(row);
         });
 
-        // Обновляем глобальные переменные при изменении input
+        // Обновляем переменные при изменении input
         variablesBody.addEventListener('input', (e) => {
             if (e.target.tagName === 'INPUT') {
                 const varName = e.target.getAttribute('data-var');
-                window[varName] = e.target.value;
-                // Также обновляем в массиве variables для replace
+                const newValue = e.target.value;
+                // Обновляем в массиве
                 const varObj = variables.find(v => v.name === varName);
-                if (varObj) varObj.value = e.target.value;
+                if (varObj) varObj.value = newValue;
+                // Переустанавливаем в window
+                setVariable(varName, newValue);
             }
         });
 
@@ -220,11 +238,11 @@
                     try {
                         const text = await file.text();
                         const data = JSON.parse(text);
-                        // Обновляем переменные
+                        // Обновляем переменные, только если они не пустые в JSON
                         variables.forEach(v => {
-                            if (data.hasOwnProperty(v.name)) {
+                            if (data.hasOwnProperty(v.name) && data[v.name].trim() !== '') {
                                 v.value = data[v.name];
-                                window[v.name] = v.value;
+                                setVariable(v.name, v.value);
                                 // Обновляем input в таблице
                                 const input = variablesBody.querySelector(`input[data-var="${v.name}"]`);
                                 if (input) {
@@ -232,7 +250,7 @@
                                 }
                             }
                         });
-                        statusDiv.textContent += ` Переменные из ${file.name} загружены.\n`;
+                        statusDiv.textContent += ` Переменные из ${file.name} загружены (пустые пропущены).\n`;
                     } catch (e) {
                         alert(`Ошибка при обработке ${file.name}: ${e.message}`);
                     }
@@ -321,9 +339,12 @@
                 }
             });
 
-            // Теперь заменяем любые оставшиеся имена переменных на их значения по всему документу
+            // Теперь заменяем имена переменных на их значения, только если значение не пустое
             variables.forEach(v => {
-                content = content.replaceAll(v.name, v.value);
+                if (v.value.trim() !== '') {
+                    content = content.replaceAll(v.name, v.value);
+                }
+                // Если пустое, оставляем имя в документе как есть
             });
 
             // Возвращаем длинные подчёркивания обратно
@@ -366,10 +387,12 @@
                 zip.file(newName, modifiedBlob);
             }
 
-            // Добавляем JSON-файл с значениями переменных
+            // Добавляем JSON-файл с значениями переменных, исключая пустые
             const variablesJson = {};
             variables.forEach(v => {
-                variablesJson[v.name] = v.value;
+                if (v.value.trim() !== '') {
+                    variablesJson[v.name] = v.value;
+                }
             });
             zip.file('variables.json', JSON.stringify(variablesJson, null, 2));
 
