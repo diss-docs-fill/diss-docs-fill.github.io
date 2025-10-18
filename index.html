@@ -77,6 +77,14 @@
             width: 100%;
             box-sizing: border-box;
         }
+        input[readonly] {
+            background-color: #f9f9f9;
+            color: gray; /* Сделать текст серым для readonly полей */
+        }
+        small {
+            font-size: 0.8em;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -124,102 +132,171 @@
         // Ваши переменные с кириллицей
         const variables = [
             {
+                comment: "Фамилия соискателя",
+                name: "Фамилия_соискателя",
+                value: "",
+                examples: "Иванова<br/>Петров<br/>Сидоров",
+                isComputed: false
+            },
+            {
+                comment: "Имя и отчество соискателя",
+                name: "Имя_Отчество_соискателя",
+                value: "",
+                examples: "Мария Петровна<br/>Алексей Сидорович",
+                isComputed: false
+            },
+            {
                 comment: "Фамилия, имя, отчество соискателя в родительном падеже",
                 name: "ФИО_в_родительном_падеже",
-                value: "Ивановой Марии Петровны",
-                examples: "Петрова Алексея Сидоровича"
+                value: "",
+                examples: "Ивановой Марии Петровны<br/>Петрова Алексея Сидоровича",
+                isComputed: false
+            },
+            {
+                comment: "Фамилия, имя, отчество соискателя в именительном падеже (вычисляется автоматически)",
+                name: "ФИО_в_именительном_падеже",
+                value: "",
+                examples: "Иванова Мария Петровна<br/>Петров Алексей Сидорович",
+                isComputed: true,
+                expression: "Фамилия_соискателя + ' ' + Имя_Отчество_соискателя"
             },
             {
                 comment: "Тема диссертации",
                 name: "Тема_диссертации",
-                value: "О некоторых изометрических вложениях трёхмерного шара в отдельных представителей фауны средней полосы",
-                examples: "О некоторых изометрических вложениях трёхмерного шара в отдельных представителей фауны средней полосы"
+                value: "",
+                examples: "О некоторых изометрических вложениях трёхмерного шара в отдельных представителей фауны средней полосы",
+                isComputed: false
             },
             {
                 comment: "Шифр научной специальности",
                 name: "ШИФР_СПЕЦ",
-                value: "1.1.1.",
-                examples: "1.1.1.<br/>1.2.3."
+                value: "",
+                examples: "1.1.1.<br/>1.1.1.<br/>1.2.3.",
+                isComputed: false
             },
             {
                 comment: "Название научной специальности",
                 name: "Название_научной_специальности",
-                value: "Вещественный, комплексный и функциональный анализ",
-                examples: "Дифференциальные уравнения и оптимальное управление"
+                value: "",
+                examples: "Вещественный, комплексный и функциональный анализ<br/>Дифференциальные уравнения и оптимальное управление",
+                isComputed: false
             },
             {
                 comment: "Название отрасли наук",
                 name: "каких_наук",
-                value: "физико-математических",
-                examples: "технических<br/>биологических"
+                value: "",
+                examples: "физико-математических<br/>технических<br/>биологических",
+                isComputed: false
             },
             {
                 comment: "Соискаемая степень",
                 name: "кандидат_или_доктор",
-                value: "кандидат",
-                examples: "кандидат<br/>доктор"
+                value: "",
+                examples: "кандидат<br/>кандидат<br/>доктор",
+                isComputed: false
             },
             {
                 comment: "Шифр диссертационного совета",
                 name: "ШИФР_СОВЕТА",
-                value: "ПДС.1337.265",
-                examples: "Д.220.66.66"
+                value: "",
+                examples: "ПДС.1337.265<br/>Д.220.66.66",
+                isComputed: false
             },
             {
                 comment: "Фамилия и инициалы учёного секретаря диссовета в родительном падеже",
                 name: "Учсекретарь_И_О",
-                value: "Дебиановский И.И.",
-                examples: "Иванова И.И. <br/> Петров М. К."
+                value: "",
+                examples: "Дебиановский И.И.<br/>Иванова И.И. <br/> Петров М. К.",
+                isComputed: false
             },
             // Можно добавить другие переменные здесь
         ];
 
-        // Функция для установки переменных в window
-        function setVariable(varName, varValue) {
-            if (varValue.trim() === '') {
-                // Если пустое, устанавливаем getter, который выбрасывает ошибку при чтении
-                Object.defineProperty(window, varName, {
+        // Функция для установки getter'а для переменной
+        function setVariable(varObj) {
+            if (varObj.isComputed) {
+                Object.defineProperty(window, varObj.name, {
                     get: () => {
-                        throw new Error(`Переменная "${varName}" пуста и не может быть использована в выражениях.`);
+                        try {
+                            return eval(varObj.expression);
+                        } catch (e) {
+                            throw new Error(`Ошибка в вычислении "${varObj.name}": ${e.message}`);
+                        }
                     },
-                    configurable: true // Чтобы можно было переопределить позже
+                    configurable: true
                 });
             } else {
-                // Иначе присваиваем значение
-                window[varName] = varValue;
+                Object.defineProperty(window, varObj.name, {
+                    get: () => {
+                        if (varObj.value.trim() === '') {
+                            throw new Error(`Переменная "${varObj.name}" не заполнена. Пожалуйста, введите значение.`);
+                        }
+                        return varObj.value;
+                    },
+                    configurable: true
+                });
             }
         }
 
-        // Инициализация переменных
+        // Функция для обновления вычисляемых переменных
+        function updateComputedVariables() {
+            variables.forEach(v => {
+                if (v.isComputed) {
+                    try {
+                        v.value = eval(v.expression);
+                    } catch (e) {
+                        v.value = ''; // Или оставить как есть
+                    }
+                    // Обновляем readonly input
+                    const input = variablesBody.querySelector(`input[data-var="${v.name}"]`);
+                    if (input) {
+                        input.value = v.value;
+                    }
+                }
+            });
+        }
+
+        // Устанавливаем переменные глобально с getter'ами
         variables.forEach(v => {
-            setVariable(v.name, v.value);
+            setVariable(v);
         });
 
         // Заполняем таблицу
         const variablesBody = document.getElementById('variablesBody');
         variables.forEach(v => {
             const row = document.createElement('tr');
-            // Экранируем значение для value input, на всякий случай
             const escapedValue = String(v.value).replace(/"/g, '&quot;');
+            let valueCellContent;
+            if (v.isComputed) {
+                valueCellContent = `
+                    <div>Заполняется автоматически</div>
+                    <small>${v.expression}</small>
+                    <input type="text" value="${escapedValue}" data-var="${v.name}" readonly>
+                `;
+            } else {
+                valueCellContent = `<input type="text" value="${escapedValue}" data-var="${v.name}">`;
+            }
             row.innerHTML = `
                 <td>${v.comment}</td>
                 <td>${v.name}</td>
-                <td><input type="text" value="${escapedValue}" data-var="${v.name}"></td>
+                <td>${valueCellContent}</td>
                 <td>${v.examples}</td>
             `;
             variablesBody.appendChild(row);
         });
 
-        // Обновляем переменные при изменении input
+        // Обновляем переменные при изменении input (только для не вычисляемых)
         variablesBody.addEventListener('input', (e) => {
-            if (e.target.tagName === 'INPUT') {
+            if (e.target.tagName === 'INPUT' && !e.target.readOnly) {
                 const varName = e.target.getAttribute('data-var');
-                const newValue = e.target.value;
-                // Обновляем в массиве
                 const varObj = variables.find(v => v.name === varName);
-                if (varObj) varObj.value = newValue;
-                // Переустанавливаем в window
-                setVariable(varName, newValue);
+                if (varObj && !varObj.isComputed) {
+                    varObj.value = e.target.value;
+                    // Переопределяем getter
+                    setVariable(varObj);
+                    // Обновляем вычисляемые переменные
+                    updateComputedVariables();
+                }
             }
         });
 
@@ -238,19 +315,22 @@
                     try {
                         const text = await file.text();
                         const data = JSON.parse(text);
-                        // Обновляем переменные, только если они не пустые в JSON
+                        // Обновляем только редактируемые переменные
                         variables.forEach(v => {
-                            if (data.hasOwnProperty(v.name) && data[v.name].trim() !== '') {
+                            if (!v.isComputed && data.hasOwnProperty(v.name)) {
                                 v.value = data[v.name];
-                                setVariable(v.name, v.value);
                                 // Обновляем input в таблице
                                 const input = variablesBody.querySelector(`input[data-var="${v.name}"]`);
                                 if (input) {
                                     input.value = v.value;
                                 }
+                                // Переопределяем getter
+                                setVariable(v);
                             }
                         });
-                        statusDiv.textContent += ` Переменные из ${file.name} загружены (пустые пропущены).\n`;
+                        // Обновляем вычисляемые
+                        updateComputedVariables();
+                        statusDiv.textContent += ` Переменные из ${file.name} загружены.\n`;
                     } catch (e) {
                         alert(`Ошибка при обработке ${file.name}: ${e.message}`);
                     }
@@ -339,12 +419,11 @@
                 }
             });
 
-            // Теперь заменяем имена переменных на их значения, только если значение не пустое
+            // Теперь заменяем имена переменных на их значения, но только для непустых
             variables.forEach(v => {
                 if (v.value.trim() !== '') {
                     content = content.replaceAll(v.name, v.value);
                 }
-                // Если пустое, оставляем имя в документе как есть
             });
 
             // Возвращаем длинные подчёркивания обратно
@@ -387,10 +466,10 @@
                 zip.file(newName, modifiedBlob);
             }
 
-            // Добавляем JSON-файл с значениями переменных, исключая пустые
+            // Добавляем JSON-файл с значениями переменных, исключая пустые и вычисляемые
             const variablesJson = {};
             variables.forEach(v => {
-                if (v.value.trim() !== '') {
+                if (!v.isComputed && v.value.trim() !== '') {
                     variablesJson[v.name] = v.value;
                 }
             });
