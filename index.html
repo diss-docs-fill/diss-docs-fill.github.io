@@ -472,8 +472,9 @@
             }
         }
 
-        // Обработка содержимого: исключаем длинные подчёркивания (4+ подряд) из обработки
+        // Обработка содержимого: исключаем длинные подчёркивания (4+ подряд) из обработки, возвращаем content и count замен
         function processContent(content) {
+            let replacementsCount = 0;
             const placeholders = [];
             // Заменяем длинные подчёркивания (4+) на маркеры, чтобы исключить из обработки
             content = content.replace(/_{4,}/g, (match) => {
@@ -487,6 +488,7 @@
                 try {
                     const result = eval(expr);
                     if (result !== undefined) {
+                        replacementsCount++;
                         return String(result);
                     } else {
                         return match; // оставить без изменений
@@ -499,7 +501,11 @@
             // Теперь заменяем имена переменных на их значения, но только для непустых
             variables.forEach(v => {
                 if (v.value.trim() !== '') {
+                    const before = content;
                     content = content.replaceAll(v.name, v.value);
+                    // Считаем количество замен: разница в длине строк после split
+                    const occurrences = (before.split(v.name).length - 1);
+                    replacementsCount += occurrences;
                 }
             });
 
@@ -508,7 +514,7 @@
                 content = content.replace(`__PLACEHOLDER_${i}__`, orig);
             });
 
-            return content;
+            return { content, count: replacementsCount };
         }
 
         processBtn.addEventListener('click', async () => {
@@ -516,6 +522,7 @@
             processBtn.disabled = true;
 
             const zip = new JSZip();
+            let totalReplacements = 0;
             for (const file of docFiles) {
                 const arrayBuffer = await file.arrayBuffer();
                 const originalZip = await JSZip.loadAsync(arrayBuffer);
@@ -529,7 +536,8 @@
 
                 if (originalZip.files[xmlPath]) {
                     const xmlContent = await originalZip.files[xmlPath].async('text');
-                    const processedContent = processContent(xmlContent);
+                    const { content: processedContent, count } = processContent(xmlContent);
+                    totalReplacements += count;
 
                     originalZip.file(xmlPath, processedContent);
                 }
@@ -575,7 +583,7 @@
             a.click();
             URL.revokeObjectURL(url);
 
-            statusDiv.textContent = 'Готово! Файлы скачаны.';
+            statusDiv.textContent = `Готово! Файлы скачаны. Успешно заменено: ${totalReplacements} плейсхолдеров.`;
             processBtn.disabled = false;
         });
     </script>
