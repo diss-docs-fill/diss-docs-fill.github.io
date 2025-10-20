@@ -272,6 +272,20 @@
                 examples: "Дебиановский И.И.<br/>Иванова И.И. <br/> Петров М. К.",
                 isComputed: false
             },
+            {
+                comment: "Префикс для имени обработанного файла",
+                name: "Префикс_файла",
+                value: "",
+                examples: "processed_",
+                isComputed: false
+            },
+            {
+                comment: "Постфикс для имени обработанного файла (добавляется перед расширением)",
+                name: "Постфикс_файла",
+                value: "__autofilled",
+                examples: "__autofilled",
+                isComputed: false
+            },
             // Можно добавить другие переменные здесь
         ];
 
@@ -522,10 +536,25 @@
 
                 const modifiedBlob = await originalZip.generateAsync({ type: 'blob' });
 
-                // Изменяем имя файла: добавляем "__autofilled" перед расширением
+                // Получаем префикс и постфикс из переменных
+                const prefixVar = variables.find(v => v.name === 'Префикс_файла');
+                const postfixVar = variables.find(v => v.name === 'Постфикс_файла');
+                const prefix = prefixVar ? prefixVar.value : '';
+                const postfix = postfixVar ? postfixVar.value : '';
+
+                // Изменяем имя файла: добавляем префикс и постфикс с учётом условий
                 const ext = file.name.split('.').pop(); // Получаем расширение
                 const base = file.name.slice(0, -ext.length - 1); // Получаем имя без расширения и точки
-                const newName = `${base}__autofilled.${ext}`;
+                let newBase = base;
+
+                if (prefix && !base.startsWith(prefix)) {
+                    newBase = prefix + newBase;
+                }
+                if (postfix && !base.endsWith(postfix)) {
+                    newBase += postfix;
+                }
+
+                const newName = `${newBase}.${ext}`;
                 zip.file(newName, modifiedBlob);
             }
 
